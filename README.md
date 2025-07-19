@@ -58,15 +58,12 @@ Se evaluaron varios modelos de boosting:
 ---
 
 ## 🚀 Ver la App
+## 🌐 Aplicación en Streamlit
 
+La app se abrirá automáticamente en tu navegador:
 
-```bash
-https://proyimpagohipotecasgit-o4od96aoo2pnhckgdsbrgj.streamlit.app/
-```
+[🔗 https://proyimpagohipotecasgit-o4od96aoo2pnhckgdsbrgj.streamlit.app/](https://proyimpagohipotecasgit-o4od96aoo2pnhckgdsbrgj.streamlit.app/)
 
-La app se abrirá automáticamente en tu navegador.
-
----
 
 ## 📊 Dataset
 
