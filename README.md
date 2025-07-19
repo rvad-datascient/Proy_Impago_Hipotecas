@@ -61,7 +61,7 @@ Se evaluaron varios modelos de boosting:
 
 
 ```bash
-streamlit run app.py
+https://proyimpagohipotecasgit-o4od96aoo2pnhckgdsbrgj.streamlit.app/
 ```
 
 La app se abrirá automáticamente en tu navegador.
