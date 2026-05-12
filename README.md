@@ -27,9 +27,13 @@ Para garantizar la integridad del dato antes del modelado, implementé:
 
 # 🌐 Aplicación en Streamlit
 
-La aplicación está dividida en el siguiente módulo operativo:
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://proyimpagohipotecas.streamlit.app/)
 
-* **Dashboard de Cartera:** Análisis masivo de solicitudes para supervisores de riesgos, con métricas de aprobación y distribución de perfiles.
+La aplicación está dividida en los siguientes módulos operativos:
+
+* **📊 Dashboard de Cartera:** Análisis masivo de solicitudes para supervisores de riesgos, con métricas de aprobación y distribución de perfiles.
+* **🔍 Buscador de Clientes:** Consulta individual de expedientes procesados por el modelo.
+* **📝 Simulador de Riesgo:** Evaluación en tiempo real para nuevas solicitudes hipotecarias.
 
 # 📁 ¿Qué hay en este Repo?
 
@@ -43,11 +47,9 @@ La aplicación está dividida en el siguiente módulo operativo:
 👋 ¡Hola! Soy Raquel, Data Analyst – Business & Financial Analytics – Data Science
 Me apasiona pillar datos desordenados y convertirlos en decisiones que sirvan para algo. Con más de 15 años de trayectoria financiera, este proyecto es mi forma de demostrar cómo la **IA aplicada** puede asegurar la integridad del dato y el retorno de la inversión aplicada al negocio.
 
-Hablamos en: [LinkedIn](https://www.google.com/search?q=www.linkedin.com/in/tu-perfil) 
+Hablamos en: [LinkedIn](www.linkedin.com/in/raquelvadillo) 
 
 ---
-
-# **🚀 Ejecución rápida:** `pip install -r requirements.txt` & `streamlit run 05_app/streamlit_app.py`
 
 # ⚠️ ¡Un segundo! (Advertencia)
 
