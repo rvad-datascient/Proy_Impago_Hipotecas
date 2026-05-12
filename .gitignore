@@ -6,6 +6,7 @@ __pycache__/
 # 🔧 Entorno virtual y configuraciones locales
 venv/
 .env/
+env/
 
 # 🔧 Archivos específicos de VSCode y Jupyter Notebook
 .vscode/
@@ -18,5 +19,5 @@ venv/
 Thumbs.db  
 desktop.ini  
 
-# 🔧 Ignorar la carpeta 
-04_.gitignore/
+# 🔧 Específico de Streamlit
+.streamlit/

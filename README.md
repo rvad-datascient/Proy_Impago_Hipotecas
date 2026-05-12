@@ -1,92 +1,60 @@
+# 🏦 Scoring Hipotecario: De Datos a Decisiones
 
-# 🏠 Predicción de Impagos Hipotecarios con Machine Learning
+Este proyecto resuelve un problema crítico en banca: **¿A quién aprobamos una hipoteca?** He construido un sistema de IA que analiza 150.000 perfiles financieros para predecir el riesgo de impago con precisión quirúrgica.
 
-Este proyecto utiliza técnicas avanzadas de Machine Learning para predecir la probabilidad de que un cliente incurra en impagos hipotecarios.
+# 📈 Resultados Reales
 
-Aunque se trata de un caso simulado, los datos provienen del conjunto **"Give Me Some Credit"** publicado en Kaggle, ampliamente utilizado para problemas de scoring crediticio.  
-El proyecto abarca desde el análisis exploratorio hasta el despliegue de una app funcional mediante Streamlit.
+Tras entrenar y testear el modelo con más de 100.000 expedientes nuevos, estos son los números:
 
----
-## 📌 Objetivo
+* **Capacidad de Predicción:** **Gini de 0.71** (Excelente nivel de discriminación).
+* **Eficiencia Operativa:** El **88% de las solicitudes se aprueban automáticamente**, liberando al equipo de riesgos para los casos complejos.
+* **Detección de Riesgo:** El modelo identifica **5.4 veces más mora** en los segmentos críticos que un análisis al azar.
 
-Desarrollar un modelo predictivo que permita a entidades financieras **anticipar impagos** en solicitudes de créditos hipotecarios, ayudando así en la gestión de riesgo y toma de decisiones.
+# 🛠️ Ingeniería de Datos (Pipeline)
 
----
-## 🧰 Tecnologías utilizadas
+Para garantizar la integridad del dato antes del modelado, implementé:
 
-- Python
-- Scikit-learn
-- XGBoost, LightGBM, CatBoost
-- Optuna
-- SMOTE
-- Streamlit
-- SHAP
+* **Winsorizing:** Tratamiento de outliers en ingresos y utilización para evitar distorsiones estadísticas sin eliminar registros.
+* **Imputación por Medianas Agrupadas:** Resolución de nulos en `IngresoMensual` basada en perfiles socioeconómicos para mantener la coherencia del dataset.
+* **Filtros de Coherencia:** Eliminación de inconsistencias (registros duplicados y edades < 18 años).
+* **Feature Selection:** Consolidación de variables de retraso para reducir la redundancia detectada en la matriz de Spearman.
 
-## 📁 Estructura del proyecto
-```
-Proy_Impago_Hipotecas/
-├── 03_notebooks/                          # Notebooks de análisis y transformación
-│   ├── Env_0_Datos_+_EDA_...ipynb         # Exploración y EDA del dataset
-│   └── Env_1_Limpieza_Datos_...ipynb      # Feature engineering y limpieza
-│
-├── 05_ml_project/                         # App en producción y componentes
-│   ├── app.py                             # Aplicación Streamlit
-│   ├── limpieza_basica.py                 # Clase para limpieza avanzada
-│   ├── preprocesamiento.py                # Funciones de transformación y escalado
-│   ├── modelo_voting_fixed.pkl            # Modelo VotingClassifier entrenado
-│   ├── scaler_robust.pkl                  # Escalador robusto para inputs
-│   └── requirements.txt                   # Librerías necesarias para producción
-│
-├── .gitignore                             # Exclusión de archivos/carpetas innecesarias
-└── README.md                              # Descripción del proyecto
-```
-## 🧪 Modelos probados
+# 🧠 El "Stack" Técnico
 
-Se evaluaron varios modelos de boosting:
+* **Modelado:** Ensamble de **XGBoost + CatBoost + LightGBM** (lo más top en la industria).
+* **Optimización:** Hiperparámetros ajustados con **Optuna**.
+* **Explicabilidad:** Uso de **SHAP** para entender por qué el modelo dice "No" (Pista: el sobreendeudamiento es la clave).
 
-- ✅ **CatBoost** (mejor equilibrio entre recall y precisión)
-- ✅ **XGBoost** (mayor recall sin umbral ajustado)
-- ✅ **LightGBM** (buena velocidad y rendimiento)
-- ✅ **VotingClassifier** (mejor resultado combinado)
+# 🌐 Aplicación en Streamlit
 
-### 🔎 Mejor combinación (Voting XGB + CatBoost):
-- Precision: 0.36
-- Recall: 0.51
-- F1-score: 0.42
-- ROC AUC: 0.86
+La aplicación está dividida en el siguiente módulo operativo:
+
+* **Dashboard de Cartera:** Análisis masivo de solicitudes para supervisores de riesgos, con métricas de aprobación y distribución de perfiles.
+
+# 📁 ¿Qué hay en este Repo?
+
+* `01_data`: El motor de datos (101.503 registros evaluados).
+* `02_notebooks`: Donde ocurre la magia (EDA y Modelado).
+* `04_models`: El cerebro del proyecto (Archivos `.joblib`).
+* `05_app`: **Dashboard interactivo en Streamlit** para uso en tiempo real.
+
+# 👩‍💻 Sobre mí
+
+👋 ¡Hola! Soy Raquel, Data Analyst – Business & Financial Analytics – Data Science
+Me apasiona pillar datos desordenados y convertirlos en decisiones que sirvan para algo. Con más de 15 años de trayectoria financiera, este proyecto es mi forma de demostrar cómo la **IA aplicada** puede asegurar la integridad del dato y el retorno de la inversión aplicada al negocio.
+
+Hablamos en: [LinkedIn](https://www.google.com/search?q=www.linkedin.com/in/tu-perfil) 
 
 ---
 
-## 🚀 Ver la App
-## 🌐 Aplicación en Streamlit
+# **🚀 Ejecución rápida:** `pip install -r requirements.txt` & `streamlit run 05_app/streamlit_app.py`
 
-La app se abrirá automáticamente en tu navegador:
+# ⚠️ ¡Un segundo! (Advertencia)
 
-[🔗 https://proyimpagohipotecasgit-o4od96aoo2pnhckgdsbrgj.streamlit.app/](https://proyimpagohipotecasgit-o4od96aoo2pnhckgdsbrgj.streamlit.app/)
+Este es un **proyecto educativo y técnico**. Aunque utiliza técnicas de vanguardia y datos reales, su propósito es demostrar capacidades en Ciencia de Datos y desarrollo de herramientas de soporte a la decisión, no debe ser usado como asesoría financiera real sin la supervisión de un experto certificado.
 
+# 📊 Dataset
 
-## 📊 Dataset
-
-- **Fuente**: Kaggle - [Give Me Some Credit Dataset](https://www.kaggle.com/c/GiveMeSomeCredit)
-- **Observaciones**: 150.000 clientes con información financiera
-- **Variable objetivo**: Impago2Años Nombre original:`SeriousDlqin2yrs` → indica si el cliente tuvo impagos en los próximos 2 años
-
----
-
-## 🧠 ¿Qué incluye este proyecto?
-
-- Limpieza avanzada de datos con clase personalizada (`LimpiezaBasica`)
-- Preprocesamiento: winsorización + escalado robusto + SMOTE
-- Comparación de modelos Boosting y VotingClassifier
-- Optimización de hiperparámetros con Optuna
-- Ajuste del umbral de decisión
-- Aplicación de predicción con Streamlit
-
----
-## 💡 Sobre Mí
-
-👋 ¡Hola! Soy Raquel, profesional en transición hacia la Ciencia de Datos, con experiencia previa en análisis financiero y mejora de procesos. Me apasiona transformar datos en decisiones útiles y aplicar modelos predictivos para resolver problemas reales.
-
-📊 Este proyecto es parte de mi portfolio y representa un caso completo de predicción de impagos hipotecarios. Incluye análisis exploratorio, limpieza de datos, entrenamiento de modelos con técnicas avanzadas (XGBoost, CatBoost, VotingClassifier), y despliegue de una app interactiva usando Streamlit.
-
-🚀 Actualmente sigo profundizando en temas como interpretabilidad con SHAP, balanceo de clases con SMOTE, y desarrollo de soluciones de datos listas para producción.
+* **Fuente:** [Kaggle - Give Me Some Credit](https://www.kaggle.com/c/GiveMeSomeCredit)
+* **Observaciones:** Información histórica de **150.000 clientes** con variables de utilización de crédito, edad, historial de retrasos y situación socioeconómica.
+* **Variable Objetivo:** `Impago2Años` (Original: *SeriousDlqin2yrs*). Indica si el cliente incurrirá en mora en los próximos 2 años.
