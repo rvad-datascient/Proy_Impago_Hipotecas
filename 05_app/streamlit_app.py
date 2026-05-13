@@ -179,4 +179,4 @@ elif menu == "📝 Simulador de Riesgo":
             if mot != "N/A": 
                 st.warning(f"**Alerta de Riesgo:** {mot}")
             else:
-                st.success("Operación recomendada por el sistema")
+                st.success("Operación recomendada por el sistema").
