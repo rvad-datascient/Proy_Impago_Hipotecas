@@ -31,7 +31,7 @@ except Exception as e:
 
 # --- CARGA DE MODELOS CON RUTA RELATIVA PARA GITHUB ---
 # Usamos 'experimental_allow_widget_deps' para evitar que se quede pensando si Git cambia los archivos
-@st.cache_resource(experimental_allow_widget_deps=True)
+@st.cache_resource
 def load_models(root_path):
     path_models = os.path.join(root_path, "04_models")
     return (
