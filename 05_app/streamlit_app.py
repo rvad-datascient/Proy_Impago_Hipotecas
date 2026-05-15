@@ -1,74 +1,68 @@
-import streamlit as st
-import pandas as pd
-import joblib
-import os
-import sys
-import importlib
-import plotly.express as px
-import numpy as np
-
 # ==============================================================================
 # 1. CONFIGURACIÓN DE RUTAS Y CARGA DE ACTIVOS
 # ==============================================================================
 
-# Definimos la raíz del proyecto para que Python encuentre '03_src' y '04_models'
-current_dir = os.path.dirname(os.path.abspath(__file__))
-root_dir = os.path.abspath(os.path.join(current_dir, ".."))
+import os
+import sys
+import streamlit as st
+import joblib
+import pandas as pd
+import importlib
 
+# Aseguramos las rutas absolutas pase lo que pase
+current_dir = os.path.dirname(os.path.abspath(__file__)) # Carpeta '05_app'
+root_dir = os.path.abspath(os.path.join(current_dir, "..")) # Raíz del proyecto
+
+# Limpiamos y aseguramos que la raíz esté al principio del bus de búsqueda de Python
 if root_dir not in sys.path:
     sys.path.insert(0, root_dir)
 
 # --- ESTILO Y COLORES CORPORATIVOS ---
-# Naranja (Pre-aprobado), Gris (Aval), Rojo (Denegado)
 PALETA = ['#FF6200', '#757575', '#D32F2F']
 
 # --- CARGA DINÁMICA DE LIMPIEZA ---
 try:
-    # Esto permite que joblib reconstruya el objeto 'limpiador'
+    # Forzamos la importación absoluta añadiendo el sys.path previo
     limpieza_mod = importlib.import_module("03_src.limpieza")
     LimpiezaBasica = limpieza_mod.LimpiezaBasica
 except Exception as e:
-    st.error(f"Error crítico: No se pudo cargar el módulo de limpieza en 03_src.")
+    st.error(f"❌ Error crítico: No se pudo cargar el módulo de limpieza en '03_src'.")
+    st.info(f"Ruta raíz calculada: {root_dir}")
     st.stop()
 
-# Cargar joblib
+# Cargar joblib de forma segura
 @st.cache_resource
 def load_models():
     path_models = os.path.join(root_dir, "04_models")
-    return (
-        joblib.load(os.path.join(path_models, 'limpiador_v1.joblib')),
-        joblib.load(os.path.join(path_models, 'scaler_standard_v1.joblib')),
-        joblib.load(os.path.join(path_models, 'credit_scorecard_v1_G71.joblib')),
-        joblib.load(os.path.join(path_models, 'model_features_v1.joblib'))
-    )
+    try:
+        return (
+            joblib.load(os.path.join(path_models, 'limpiador_v1.joblib')),
+            joblib.load(os.path.join(path_models, 'scaler_standard_v1.joblib')),
+            joblib.load(os.path.join(path_models, 'credit_scorecard_v1_G71.joblib')),
+            joblib.load(os.path.join(path_models, 'model_features_v1.joblib'))
+        )
+    except Exception as e:
+        st.error(f"❌ Error al cargar los archivos .joblib desde: {path_models}")
+        st.exception(e)
+        st.stop()
 
-# Cargar CSV creado scoring_output.csv
+# Cargar CSV de forma segura
 @st.cache_data
 def load_processed_data():
     path_csv = os.path.join(root_dir, "01_data", "processed", "scoring_output.csv")
     if os.path.exists(path_csv):
-        # Cargamos el CSV normal
         df = pd.read_csv(path_csv)
-
-        # crear condición para evitar duplicar el ID
-        # Si existe una columna llamada Unnamed: 0 en el DataFrame…
-        # Esto detecta el índice exportado del CSV
         if "Unnamed: 0" in df.columns:
-
-            # “Si NO existe ya una columna llamada id…”
             if "id" not in df.columns:
-                # “Renombra Unnamed: 0 como id.”
-                # Esto convierte el índice exportado en una columna id real.
                 df = df.rename(columns={"Unnamed: 0": "id"})
             else:
-                # “Si ya existe una columna id, entonces elimina Unnamed: 0.”
                 df = df.drop(columns=["Unnamed: 0"])
-
         return df
+    else:
+        st.warning(f"⚠️ No se encontró el archivo de datos en: {path_csv}")
+        return None
 
-    return None
-
-# Ejecución de carga
+# Ejecución de carga segura
 limpiador, scaler, modelo, model_features = load_models()
 df_p = load_processed_data()
 
