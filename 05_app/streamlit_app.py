@@ -5,178 +5,537 @@ import os
 import sys
 import importlib
 import plotly.express as px
+import numpy as np
 
-# NO silenciamos warnings. Queremos ver si algo falla para arreglarlo de raíz.
+# ==============================================================================
+# 1. CONFIGURACIÓN DE RUTAS Y CARGA DE ACTIVOS
+# ==============================================================================
 
-# --- CONFIGURACIÓN DE RUTAS RELATIVAS ---
-current_dir = os.path.dirname(__file__)
-root_dir = os.path.join(current_dir, "..")
+# Definimos la raíz del proyecto para que Python encuentre '03_src' y '04_models'
+current_dir = os.path.dirname(os.path.abspath(__file__))
+root_dir = os.path.abspath(os.path.join(current_dir, ".."))
+
 if root_dir not in sys.path:
-    sys.path.append(root_dir)
+    sys.path.insert(0, root_dir)
 
-# --- PALETA DE COLORES CORPORATIVA (Notebook 02) ---
-PALETA = ['#FF6200', '#666666', '#E01E5A'] 
+# --- ESTILO Y COLORES CORPORATIVOS ---
+# Naranja (Pre-aprobado), Gris (Aval), Rojo (Denegado)
+PALETA = ['#FF6200', '#757575', '#D32F2F']
 
-# --- CARGA DINÁMICA DEL MÓDULO DE LIMPIEZA ---
+# --- CARGA DINÁMICA DE LIMPIEZA ---
 try:
-    # Importación explícita para evitar problemas de path
+    # Esto permite que joblib reconstruya el objeto 'limpiador'
     limpieza_mod = importlib.import_module("03_src.limpieza")
     LimpiezaBasica = limpieza_mod.LimpiezaBasica
 except Exception as e:
-    st.error(f"Error crítico: No se pudo cargar '03_src/limpieza.py'. Detalle: {e}")
+    st.error(f"Error crítico: No se pudo cargar el módulo de limpieza en 03_src.")
     st.stop()
 
-# --- CONFIGURACIÓN DE LA PÁGINA ---
-st.set_page_config(page_title="Terminal Bancaria - Hipotecas", layout="wide", page_icon="🏦")
-
+# Cargar joblib
 @st.cache_resource
 def load_models():
-    p = os.path.join(root_dir, "04_models")
-    # Cargamos archivos usando rutas construidas de forma segura
+    path_models = os.path.join(root_dir, "04_models")
     return (
-        joblib.load(os.path.join(p, 'limpiador_v1.joblib')),
-        joblib.load(os.path.join(p, 'scaler_standard_v1.joblib')),
-        joblib.load(os.path.join(p, 'credit_scorecard_v1_G71.joblib')),
-        joblib.load(os.path.join(p, 'model_features_v1.joblib'))
+        joblib.load(os.path.join(path_models, 'limpiador_v1.joblib')),
+        joblib.load(os.path.join(path_models, 'scaler_standard_v1.joblib')),
+        joblib.load(os.path.join(path_models, 'credit_scorecard_v1_G71.joblib')),
+        joblib.load(os.path.join(path_models, 'model_features_v1.joblib'))
     )
 
-try:
-    limpiador, scaler, modelo, model_features = load_models()
-except Exception as e:
-    st.error(f"Error al cargar los modelos (.joblib): {e}")
-    st.info("Asegúrate de que los archivos estén en la carpeta 04_models")
-    st.stop()
+# Cargar CSV creado scoring_output.csv
+@st.cache_data
+def load_processed_data():
+    path_csv = os.path.join(root_dir, "01_data", "processed", "scoring_output.csv")
+    if os.path.exists(path_csv):
+        # Cargamos el CSV normal
+        df = pd.read_csv(path_csv)
+
+        # crear condición para evitar duplicar el ID
+        # Si existe una columna llamada Unnamed: 0 en el DataFrame…
+        # Esto detecta el índice exportado del CSV
+        if "Unnamed: 0" in df.columns:
+
+            # “Si NO existe ya una columna llamada id…”
+            if "id" not in df.columns:
+                # “Renombra Unnamed: 0 como id.”
+                # Esto convierte el índice exportado en una columna id real.
+                df = df.rename(columns={"Unnamed: 0": "id"})
+            else:
+                # “Si ya existe una columna id, entonces elimina Unnamed: 0.”
+                df = df.drop(columns=["Unnamed: 0"])
+
+        return df
+
+    return None
+
+# Ejecución de carga
+limpiador, scaler, modelo, model_features = load_models()
+df_p = load_processed_data()
+
+# --- LÓGICA DE NEGOCIO: ASIGNACIÓN DE GESTORES (EQUILIBRADA) ---
+if df_p is not None and 'gestor' not in df_p.columns:
+
+    import math
+
+    exp_por_gestor = 60
+    gestores_necesarios = max(1, math.ceil(len(df_p) / exp_por_gestor))
+    lista_gestores = [f"Gestor {i}" for i in range(1, gestores_necesarios + 1)]
+
+    # Mezclar expedientes para evitar sesgos
+    df_p = df_p.sample(frac=1, random_state=42).reset_index(drop=True)
+
+    # Crear columna vacía
+    df_p['gestor'] = None
+
+    # Reparto equilibrado por tipo de decisión
+    for decision in df_p['decision'].unique():
+        mask = df_p['decision'] == decision
+        subset = df_p.loc[mask].copy().reset_index(drop=True)
+
+        # Asignación equilibrada
+        subset['gestor'] = [
+            lista_gestores[i % gestores_necesarios]
+            for i in range(len(subset))
+        ]
+
+        # Volver a colocar los valores en df_p respetando el orden original
+        df_p.loc[mask, 'gestor'] = subset['gestor'].values
+
+
+# ==============================================================================
+# 2. LÓGICA DE NEGOCIO Y CONFIGURACIÓN UI
+# ==============================================================================
 
 def clasificar_cliente(score, uso_credito, debt_ratio):
-    """Lógica de negocio para determinar la viabilidad del préstamo"""
-    if uso_credito > 0.9: 
+    """Política de Riesgos: Criterios SHAP detectados en el Notebook 02"""
+    if uso_credito > 0.9:
         motivo = "Exceso de uso en tarjetas"
-    elif debt_ratio > 0.6: 
+    elif debt_ratio > 0.6:
         motivo = "Sobreendeudamiento"
-    else: 
+    else:
         motivo = "Riesgo por perfil histórico"
 
-    if score < 0.30: return "Pre-concedido (Campaña)", "N/A", "🟢"
+    if score < 0.30: return "Pre-concedido (Campaña)", "Perfil de Riesgo Bajo", "🟢"
     elif score < 0.50: return "Requiere Aval / Garantía", "Reforzar solvencia", "🟡"
     else: return "Denegado", motivo, "🔴"
 
-# --- INTERFAZ PRINCIPAL ---
-st.title("🏦 Terminal de Decisiones Crediticias")
-st.write("---")
-
-menu = st.sidebar.radio(
-    "Menú de Navegación", 
-    ["📊 Dashboard Team Leader", "🔍 Buscador de Clientes", "📝 Simulador de Riesgo"]
+# --- CONFIGURACIÓN DE LA PÁGINA Y ENCABEZADO ---
+st.set_page_config(
+    page_title="Reporting Producción Bancarias",
+    layout="wide",
+    page_icon="🏦"
 )
 
-# Ruta al dataset generado en el notebook 02
-path_csv = os.path.join(root_dir, "01_data", "processed", "scoring_output.csv")
+st.title("🏦 Reporting de Producción Bancarias")
+st.markdown("---")
+st.info("Panel de control de Scoring de Riesgos | Departamento de Análisis de Crédito")
 
-if menu == "📊 Dashboard Team Leader":
-    st.subheader("Estado Global de la Cartera")
-    try:
-        df_p = pd.read_csv(path_csv)
-        total_solicitudes = len(df_p)
-        
-        # Reindexamos para asegurar que el orden y los colores coincidan
-        orden_decisiones = ["Pre-concedido (Campaña)", "Requiere Aval / Garantía", "Denegado"]
-        conteo = df_p["decision"].value_counts().reindex(orden_decisiones).fillna(0)
-        pct = (conteo / total_solicitudes) * 100
+# --- SIDEBAR ---
+st.sidebar.markdown("## 🏦 Sistema de Scoring Hipotecas")
+st.sidebar.markdown("---")
+st.sidebar.title("Navegación")
+menu = st.sidebar.radio(
+    "Seleccione módulo:",
+    ["📊 Dashboard de Cartera", "📁 Panel de Gestión de Cartera", "📝 Simulador de Riesgo"]
 
-        # Métricas principales usando .iloc para evitar FutureWarning de Pandas
-        m1, m2, m3, m4 = st.columns(4)
-        m1.metric("Total Solicitudes", f"{total_solicitudes:,}")
-        m2.metric("Aprobado", f"{pct.iloc[0]:.1f}%", f"{int(conteo.iloc[0]):,} exp.")
-        m3.metric("A Revisar", f"{pct.iloc[1]:.1f}%", f"{int(conteo.iloc[1]):,} exp.")
-        m4.metric("Denegado", f"{pct.iloc[2]:.1f}%", f"{int(conteo.iloc[2]):,} exp.")
+)
+st.sidebar.markdown("---")
+st.sidebar.caption("© 2026 Analítica de Riesgos - Uso Interno")
 
-        st.markdown("### 👥 Planificación y Reparto de Staff")
-        exp_por_gestor = 60
-        gestores_necesarios = round(total_solicitudes / exp_por_gestor)
-        st.success(f"Gestores necesarios para esta cartera: **{gestores_necesarios:,} especialistas**.")
+# ==============================================================================
+# 3. MÓDULOS DE LA APLICACIÓN
+# ==============================================================================
 
-        # Gráfico de barras usando Plotly para interactividad
-        df_plot = pd.DataFrame({"Estado": conteo.index, "Expedientes": conteo.values})
-        fig = px.bar(df_plot, x="Estado", y="Expedientes", color="Estado",
-                     color_discrete_sequence=PALETA, text_auto=',.0f', 
-                     title="PLAN DE ACCIÓN OPERATIVO")
-        fig.update_layout(showlegend=False, xaxis_title="", yaxis_title="Clientes")
-        st.plotly_chart(fig, use_container_width=True)
+# --- MÓDULO 1: DASHBOARD TEAM LEADER ---
+if menu == "📊 Dashboard de Cartera":
+    st.title("📊 Dashboard Team Leader - Estado Global")
 
-    except FileNotFoundError:
-        st.error(f"No se encontró el archivo: {path_csv}. Ejecuta primero el notebook de inferencia.")
+    if df_p is not None:
+        try:
+            # ============================
+            # 1. MÉTRICAS GLOBALES
+            # ============================
+            total_solicitudes = len(df_p)
+            orden_decisiones = ["Pre-concedido (Campaña)", "Requiere Aval / Garantía", "Denegado"]
+            conteo = df_p["decision"].value_counts().reindex(orden_decisiones).fillna(0)
+            pct = (conteo / total_solicitudes) * 100
 
-elif menu == "🔍 Buscador de Clientes":
-    st.subheader("Consulta Individual de Expediente")
-    try:
-        df_p = pd.read_csv(path_csv)
-        id_cliente = st.number_input("ID de Cliente (Índice):", 0, len(df_p)-1, 0)
-        
-        # Acceso seguro por posición
-        cliente = df_p.iloc[id_cliente]
-        
-        st.markdown("---")
-        c1, c2 = st.columns(2)
-        with c1:
-            st.markdown("#### 📄 Datos del Solicitante")
-            st.write(f"**Edad:** {cliente.get('Edad', 'N/A')}")
-            st.write(f"**Ingreso Mensual:** ${cliente.get('IngresoMensual', 0):,.2f}")
-            st.write(f"**Uso Crédito:** {cliente.get('UsoCrédito', 0):.2%}")
-            st.write(f"**Ratio Deuda:** {cliente.get('RatioDeuda', 0):.2%}")
-            st.write(f"**Dependientes:** {int(cliente.get('Dependientes', 0))}")
-        with c2:
-            st.markdown("#### ⚖️ Dictamen del Modelo")
-            dec = cliente['decision']
-            color = "green" if "Pre-concedido" in dec else "orange" if "Requiere" in dec else "red"
-            st.markdown(f"### :{color}[{dec}]")
-            st.write(f"**Score de Riesgo:** `{cliente['score']:.4f}`")
-            st.write(f"**Motivo Principal:** {cliente['motivo_principal']}")
-    except Exception as e:
-        st.error(f"Error al consultar el registro: {e}")
+            m1, m2, m3, m4 = st.columns(4)
+            m1.metric("Total Solicitudes", f"{total_solicitudes:,}".replace(",", "."))
+            m2.metric("Aprobado", f"{pct.iloc[0]:.1f}%", f"{int(conteo.iloc[0]):,} exp.")
+            m3.metric("A Revisar", f"{pct.iloc[1]:.1f}%", f"{int(conteo.iloc[1]):,} exp.")
+            m4.metric("Denegado", f"{pct.iloc[2]:.1f}%", f"{int(conteo.iloc[2]):,} exp.")
 
-elif menu == "📝 Simulador de Riesgo":
-    st.subheader("Evaluación de Nueva Solicitud (Inferencia)")
-    with st.form("sim_form"):
-        c1, c2 = st.columns(2)
-        with c1:
-            edad = st.number_input("Edad", 18, 100, 35)
-            ing = st.number_input("Ingresos Mensuales ($)", 0, 100000, 3000)
-            uso = st.slider("Uso Crédito (%)", 0.0, 2.0, 0.3)
-            dep = st.number_input("Dependientes", 0, 15, 0)
-        with c2:
-            deu = st.slider("Ratio Deuda", 0.0, 2.0, 0.3)
-            r30 = st.number_input("Retrasos 30-59 días", 0, 50, 0)
-            r60 = st.number_input("Retrasos 60-89 días", 0, 50, 0)
-            r90 = st.number_input("Retrasos +90 días", 0, 50, 0)
-        
-        if st.form_submit_button("Realizar Scoring"):
-            # Construimos el DataFrame con nombres de columnas originales para el Pipeline
-            input_df = pd.DataFrame([{
-                'RevolvingUtilizationOfUnsecuredLines': uso, 
-                'age': edad,
-                'NumberOfTime30-59DaysPastDueNotWorse': r30, 
-                'DebtRatio': deu,
-                'MonthlyIncome': ing, 
-                'NumberOfOpenCreditLinesAndLoans': 5,
-                'NumberOfTimes90DaysLate': r90, 
-                'NumberRealEstateLoansOrLines': 1,
-                'NumberOfTime60-89DaysPastDueNotWorse': r60, 
-                'NumberOfDependents': dep
-            }])
-            
-            # Procesamiento en cadena: Limpieza -> Escalado -> Selección de Features -> Modelo
-            df_cleaned = limpiador.transform(input_df)
-            df_scaled = pd.DataFrame(scaler.transform(df_cleaned), columns=df_cleaned.columns)
-            df_final = df_scaled[model_features]
-            
-            # Inferencia
-            prob = modelo.predict_proba(df_final)[0, 1]
-            dec, mot, ico = clasificar_cliente(prob, uso, deu)
-            
             st.markdown("---")
-            st.markdown(f"## {ico} Resultado: {dec}")
-            st.metric("Probabilidad de Impago Estimada", f"{prob:.2%}")
-            if mot != "N/A": 
-                st.warning(f"**Alerta de Riesgo:** {mot}")
+
+            # ============================
+            # 2. PLANIFICACIÓN DE STAFF
+            # ============================
+            st.markdown("### 👥 Planificación y Reparto de Staff")
+
+            exp_por_gestor = 60
+            gestores_necesarios = round(total_solicitudes / exp_por_gestor)
+
+            st.success(
+                f"Gestores necesarios para procesar esta cartera: "
+                f"**{max(1, gestores_necesarios):,} especialistas**."
+            )
+
+            st.markdown("---")
+
+            # ============================
+            # 3. GRÁFICO GLOBAL DE ESTADOS
+            # ============================
+            c1, c2 = st.columns([2, 1])
+            with c1:
+                df_plot = pd.DataFrame({"Estado": conteo.index, "Expedientes": conteo.values})
+
+                COLORES_ESTADOS = {
+                    "Pre-concedido (Campaña)": "#FF6200",   # Naranja
+                    "Requiere Aval / Garantía": "#757575",  # Gris
+                    "Denegado": "#D32F2F"                   # Rojo
+                }
+
+                fig = px.bar(
+                    df_plot,
+                    x="Estado",
+                    y="Expedientes",
+                    color="Estado",
+                    color_discrete_map=COLORES_ESTADOS,
+                    text_auto=',.0f',
+                    title="PLAN DE ACCIÓN OPERATIVO"
+                )
+                fig.update_layout(showlegend=False, xaxis_title="", yaxis_title="Número de Clientes")
+                st.plotly_chart(fig, use_container_width=True)
+
+            with c2:
+                st.markdown("### 🎯 Drivers de Riesgo")
+                st.write("**71.7%** de los rechazos se deben al **Uso de Crédito**.")
+                st.write("**27.5%** responden a **Morosidad** previa.")
+                st.divider()
+                st.info("💡 **Estrategia sugerida:** Fomentar productos con aval para la 'Zona Gris'.")
+
+            st.markdown("---")
+
+            # ============================
+            # 5. KPIs DE CARGA
+            # ============================
+            st.markdown("### 📊 Indicadores de Carga de Trabajo")
+
+            df_dist = df_p.groupby("gestor").size()
+
+            carga_media = int(df_dist.mean())
+            carga_max = int(df_dist.max())
+            carga_min = int(df_dist.min())
+
+            k1, k2, k3 = st.columns(3)
+            k1.metric("Carga media por gestor", f"{carga_media:,}".replace(",", ".") + " expedientes")
+            k2.metric("Máxima carga detectada", f"{carga_max:,}".replace(",", ".") + " expedientes")
+            k3.metric("Mínima carga detectada", f"{carga_min:,}".replace(",", ".") + " expedientes")
+
+            # ============================
+            # DESGLOSE DE DECISIONES (MEDIA POR GESTOR)
+            # ============================
+            df_tipo = (
+                df_p.groupby(["gestor", "decision"])
+                    .size()
+                    .reset_index(name="expedientes")
+            )
+
+            # Media por tipo de decisión
+            media_pre = int(df_tipo[df_tipo["decision"] == "Pre-concedido (Campaña)"]["expedientes"].mean())
+            media_aval = int(df_tipo[df_tipo["decision"] == "Requiere Aval / Garantía"]["expedientes"].mean())
+            media_den = int(df_tipo[df_tipo["decision"] == "Denegado"]["expedientes"].mean())
+
+            st.markdown("#### 🔍 Desglose medio por tipo de decisión (por gestor)")
+            st.write(f"• **Pre‑concedidos:** {media_pre:,}".replace(",", ".") + " por gestor")
+            st.write(f"• **Requieren Aval:** {media_aval:,}".replace(",", ".") + " por gestor")
+            st.write(f"• **Denegados:** {media_den:,}".replace(",", ".") + " por gestor")
+
+            st.markdown("---")
+
+            # ============================
+            # 6. DISTRIBUCIÓN GLOBAL (BOXPLOT)
+            # ============================
+            st.markdown("### 📦 Distribución global de carga entre gestores")
+
+            fig_box = px.box(
+                df_dist,
+                points=False,
+                title="Distribución de expedientes por gestor",
+                color_discrete_sequence=["#FF6200"]
+            )
+            fig_box.update_layout(yaxis_title="Expedientes por gestor", xaxis_title="")
+            st.plotly_chart(fig_box, use_container_width=True)
+
+            st.markdown("---")
+
+        except Exception as e:
+            st.error(f"Error al procesar las métricas: {e}")
+
+
+
+
+# --- MÓDULO 2: PANEL DE GESTIÓN DE CARTERA ---
+elif menu == "📁 Panel de Gestión de Cartera":
+    st.header("📁 Panel de Gestión de Cartera")
+
+    if df_p is not None:
+
+        # ============================
+        # 1. SELECCIÓN DE GESTOR
+        # ============================
+        col_g1, col_g2 = st.columns([1, 3])
+        with col_g1:
+            # Selector dinámico de gestores ordenados numéricamente
+            gestor_actual = st.selectbox(
+                "Identifícate como gestor:",
+                sorted(df_p['gestor'].unique(), key=lambda x: int(x.split()[1]))
+            )
+
+        st.write(f"Viendo la cartera de: **{gestor_actual}**")
+
+        # Cartera completa del gestor (sin filtros de flujo)
+        df_gestor = df_p[df_p['gestor'] == gestor_actual].copy()
+
+        # ============================
+        # 2. FILTRO DE FLUJO DE TRABAJO (SE APLICA ANTES DEL GRÁFICO)
+        # ============================
+        st.markdown("### 🧮 Flujo de trabajo sobre tu cartera")
+
+        filtro_estado = st.radio(
+            "Selecciona flujo de trabajo:",
+            ["Todos", "Solicitar Aval", "Gestionar Documentación (Pre-aprobado)", "Contactar para Rechazo"],
+            horizontal=True
+        )
+
+        # Partimos de la cartera del gestor y filtramos SOLO para la vista de trabajo
+        df_gestion = df_gestor.copy()
+
+        if filtro_estado == "Solicitar Aval":
+            df_gestion = df_gestion[df_gestion['decision'].str.contains('Aval', na=False)]
+        elif filtro_estado == "Gestionar Documentación (Pre-aprobado)":
+            df_gestion = df_gestion[df_gestion['decision'].str.contains('Pre-concedido', na=False)]
+        elif filtro_estado == "Contactar para Rechazo":
+            df_gestion = df_gestion[df_gestion['decision'].str.contains('Denegado', na=False)]
+
+        # ============================
+        # 3. KPIs DEL GESTOR (FILTRADOS)
+        # ============================
+        st.markdown("### 📊 Resumen Operativo del Gestor (Filtrado)")
+
+        total = len(df_gestion)
+        pre = (df_gestion['decision'].str.contains("Pre-concedido", na=False)).sum()
+        aval = (df_gestion['decision'].str.contains("Aval", na=False)).sum()
+        den = (df_gestion['decision'].str.contains("Denegado", na=False)).sum()
+
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("Total Expedientes", f"{total:,}".replace(",", "."))
+        m2.metric("Pre-aprobados", f"{(pre/total*100 if total>0 else 0):.1f}%", f"{pre:,} exp.")
+        m3.metric("Requieren Aval", f"{(aval/total*100 if total>0 else 0):.1f}%", f"{aval:,} exp.")
+        m4.metric("Denegados", f"{(den/total*100 if total>0 else 0):.1f}%", f"{den:,} exp.")
+
+        st.markdown("---")
+
+        # ============================
+        # 4. MINI DASHBOARD VISUAL (FILTRADO)
+        # ============================
+
+        COLORES_ESTADOS = {
+            "Pre-concedido (Campaña)": "#FF6200",   # Naranja
+            "Requiere Aval / Garantía": "#757575",  # Gris
+            "Denegado": "#D32F2F"                   # Rojo
+        }
+
+        st.markdown("### 📈 Distribución de Estados (Filtrada)")
+
+        if total > 0:
+            fig = px.pie(
+                df_gestion,
+                names="decision",
+                color="decision",
+                color_discrete_map=COLORES_ESTADOS,
+                hole=0.45,
+                title="Distribución de Expedientes por Estado (Filtrado)"
+            )
+            fig.update_traces(textposition='inside', textinfo='percent+label')
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("No hay expedientes para mostrar en este filtro.")
+
+        st.markdown("---")
+
+        # ============================
+        # 5. PRIORIDAD OPERATIVA
+        # ============================
+        def prioridad(dec):
+            if "Denegado" in dec:
+                return "Alta"
+            if "Aval" in dec:
+                return "Media"
+            return "Baja"
+
+        if len(df_gestion) > 0:
+            df_gestion["prioridad"] = df_gestion["decision"].apply(prioridad)
+
+            mapa_prioridad = {"Alta": 1, "Media": 2, "Baja": 3}
+            df_gestion["prioridad_num"] = df_gestion["prioridad"].map(mapa_prioridad)
+
+            df_gestion = df_gestion.sort_values("prioridad_num")
+
+            # ============================
+            # 6. TABLA COLOREADA
+            # ============================
+            columnas_finales = ['id', 'IngresoMensual', 'score', 'decision', 'motivo_principal', 'prioridad']
+            columnas_visibles = [c for c in columnas_finales if c in df_gestion.columns]
+
+            st.markdown("### 📑 Expedientes Prioritarios en este flujo")
+
+            def color_prioridad(row):
+                if row["prioridad"] == "Alta":
+                    return ['background-color: #FFCDD2'] * len(row)
+                elif row["prioridad"] == "Media":
+                    return ['background-color: #FFF9C4'] * len(row)
+                else:
+                    return ['background-color: #C8E6C9'] * len(row)
+
+            st.dataframe(
+                df_gestion[columnas_visibles].style.apply(color_prioridad, axis=1),
+                use_container_width=True
+            )
+        else:
+            st.info("No hay expedientes en este flujo de trabajo para este gestor.")
+
+        st.markdown("---")
+
+        # ============================
+        # 7. BUSCADOR AVANZADO POR ID
+        # ============================
+        st.markdown("### 🔎 Búsqueda directa por ID")
+
+        id_busqueda = st.text_input("Introduce un ID para abrir expediente:")
+
+        if id_busqueda:
+            expediente = df_p[df_p['id'].astype(str) == id_busqueda]
+            if not expediente.empty:
+                st.success(f"Expediente encontrado para ID {id_busqueda}")
+                st.write(expediente)
             else:
-                st.success("Operación recomendada por el sistema").
+                st.error("El ID no existe en la base de datos.")
+
+
+# --- MÓDULO 3: SIMULADOR DE RIESGO (REDISEÑADO) ---
+elif menu == "📝 Simulador de Riesgo":
+    st.title("📝 Simulador de Riesgo – Evaluación Instantánea")
+    st.markdown("Introduce los datos del cliente para obtener una evaluación clara y visual del riesgo.")
+
+    with st.form("form_inferencia"):
+        c1, c2 = st.columns(2)
+
+        with c1:
+            edad = st.number_input("Edad del cliente", 18, 90, 40)
+            ingreso = st.number_input("Ingreso mensual (€)", 0, 50000, 3000)
+            uso_credito = st.slider(
+                "Uso de crédito (%)",
+                0.0, 1.2, 0.3,
+                help="Porcentaje de utilización de líneas de crédito. >0.9 implica riesgo muy alto."
+            )
+
+        with c2:
+            ratio_deuda = st.slider(
+                "Ratio de deuda (%)",
+                0.0, 1.2, 0.35,
+                help="Deuda total / ingresos. >0.6 implica sobreendeudamiento."
+            )
+            morosidad = st.number_input(
+                "Número de retrasos +90 días",
+                0, 10, 0,
+                help="Historial de morosidad grave."
+            )
+            dependientes = st.number_input("Número de dependientes", 0, 10, 0)
+
+        btn = st.form_submit_button("Calcular Riesgo")
+
+    if btn:
+        # 1. Preparar datos
+        input_data = pd.DataFrame([{
+            'UsoCrédito': uso_credito,
+            'Edad': edad,
+            '30-59DíasTarde': 0,
+            '60-89DíasTarde': 0,
+            '90DíasTarde': morosidad,
+            'RatioDeuda': ratio_deuda,
+            'IngresoMensual': ingreso,
+            'LíneasCrédito': 5,
+            'PréstamosCasa': 1,
+            'Dependientes': dependientes
+        }])
+
+        # 2. Escalar y predecir
+        X_scaled = pd.DataFrame(scaler.transform(input_data), columns=input_data.columns)
+        X_final = X_scaled[model_features]
+        prob = modelo.predict_proba(X_final)[0, 1]
+
+        # 3. Clasificación con reglas de negocio
+        if uso_credito > 0.9:
+            decision = "Denegado"
+            motivo = "Exceso de uso de crédito (>90%)"
+            icono = "🔴"
+        elif ratio_deuda > 0.6:
+            decision = "Denegado"
+            motivo = "Sobreendeudamiento (Ratio deuda > 60%)"
+            icono = "🔴"
+        elif prob > 0.5:
+            decision = "Denegado"
+            motivo = "Riesgo alto según modelo"
+            icono = "🔴"
+        elif prob > 0.3:
+            decision = "Requiere Aval / Garantía"
+            motivo = "Riesgo medio"
+            icono = "🟡"
+        else:
+            decision = "Pre-concedido (Campaña)"
+            motivo = "Riesgo bajo"
+            icono = "🟢"
+
+        # 4. Mostrar resultado
+        st.markdown("---")
+        st.subheader(f"{icono} Dictamen Final: **{decision}**")
+        st.write(f"**Motivo principal:** {motivo}")
+
+        colA, colB = st.columns(2)
+        with colA:
+            st.metric("Riesgo estimado (score)", f"{prob:.2%}")
+        with colB:
+            st.metric("Ingreso mensual", f"{ingreso:,.0f} €")
+
+        # 5. Explicabilidad simplificada
+        st.markdown("### 🔍 Factores que afectan al riesgo")
+
+        if uso_credito > 0.9:
+            st.error("• Uso de crédito extremadamente alto (>90%)")
+        elif uso_credito > 0.6:
+            st.warning("• Uso de crédito elevado (>60%)")
+
+        if ratio_deuda > 0.6:
+            st.error("• Ratio de deuda muy alto (>60%)")
+        elif ratio_deuda > 0.4:
+            st.warning("• Ratio de deuda moderado (>40%)")
+
+        if morosidad > 0:
+            st.error("• Historial de morosidad grave")
+
+        if ingreso < 1200:
+            st.warning("• Ingreso mensual bajo (<1200 €)")
+
+        st.markdown("---")
+
+        # 6. Recomendación operativa
+        st.markdown("### 💡 Recomendación operativa")
+
+        if decision == "Pre-concedido (Campaña)":
+            st.success("Cliente apto. Proceder con documentación.")
+        elif decision == "Requiere Aval / Garantía":
+            st.warning("Solicitar avalista o garantías adicionales.")
+        else:
+            st.error("No recomendado según política de riesgos actual.")

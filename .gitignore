@@ -7,6 +7,7 @@ __pycache__/
 venv/
 .env/
 env/
+.devcontainer/  # 💡 Añádelo si decidiste que no quieres compartir tu config de contenedor
 
 # 🔧 Archivos específicos de VSCode y Jupyter Notebook
 .vscode/
@@ -16,8 +17,18 @@ env/
 *.tmp
 *.bak
 *.swp
-Thumbs.db  
-desktop.ini  
+Thumbs.db
+desktop.ini
 
 # 🔧 Específico de Streamlit
-.streamlit/
+.streamlit/config.toml  # Es mejor ignorar la config personal de Streamlit
+
+# 🔧 DATOS Y MODELOS (Puntos críticos)
+# Ignoramos los datos crudos originales por seguridad
+01_data/raw/*.csv
+
+# PERO permitimos los datos procesados que la APP necesita
+!01_data/processed/scoring_output.csv
+
+# Ignoramos archivos de gran tamaño que genera Jupyter
+*.ipynb_checkpoints
