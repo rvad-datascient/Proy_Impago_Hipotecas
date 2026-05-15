@@ -32,7 +32,7 @@ Para garantizar la integridad del dato antes del modelado, implementé:
 La aplicación está dividida en los siguientes módulos operativos:
 
 * **📊 Dashboard de Cartera:** Análisis masivo de solicitudes para supervisores de riesgos, con métricas de aprobación y distribución de perfiles.
-* **🔍 Buscador de Clientes:** Consulta individual de expedientes procesados por el modelo.
+* **📁 Panel de Gestión de Cartera** Consulta individual de expedientes procesados por el modelo.
 * **📝 Simulador de Riesgo:** Evaluación en tiempo real para nuevas solicitudes hipotecarias.
 
 # 📁 ¿Qué hay en este Repo?
