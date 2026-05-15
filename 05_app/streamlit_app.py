@@ -1,20 +1,20 @@
-# ==============================================================================
-# 1. CONFIGURACIÓN DE RUTAS Y CARGA DE ACTIVOS
-# ==============================================================================
-
+import streamlit as st
+import pandas as pd
+import joblib
 import os
 import sys
-import streamlit as st
-import joblib
-import pandas as pd
 import importlib
+import numpy as np
 import plotly.express as px
 
-# Aseguramos las rutas absolutas pase lo que pase
-current_dir = os.path.dirname(os.path.abspath(__file__)) # Carpeta '05_app'
-root_dir = os.path.abspath(os.path.join(current_dir, "..")) # Raíz del proyecto
+# ==============================================================================
+# 1. CONFIGURACIÓN DE RUTAS ENFOQUE GITHUB (SEGURO)
+# ==============================================================================
 
-# Limpiamos y aseguramos que la raíz esté al principio del bus de búsqueda de Python
+# Definimos la raíz del proyecto de forma dinámica para GitHub y Local
+current_dir = os.path.dirname(os.path.abspath(__file__))
+root_dir = os.path.abspath(os.path.join(current_dir, ".."))
+
 if root_dir not in sys.path:
     sys.path.insert(0, root_dir)
 
@@ -23,34 +23,28 @@ PALETA = ['#FF6200', '#757575', '#D32F2F']
 
 # --- CARGA DINÁMICA DE LIMPIEZA ---
 try:
-    # Forzamos la importación absoluta añadiendo el sys.path previo
     limpieza_mod = importlib.import_module("03_src.limpieza")
     LimpiezaBasica = limpieza_mod.LimpiezaBasica
 except Exception as e:
-    st.error(f"❌ Error crítico: No se pudo cargar el módulo de limpieza en '03_src'.")
-    st.info(f"Ruta raíz calculada: {root_dir}")
+    st.error(f"Error crítico: No se pudo cargar el módulo de limpieza en 03_src.")
     st.stop()
 
-# Cargar joblib de forma segura
-@st.cache_resource
-def load_models():
-    path_models = os.path.join(root_dir, "04_models")
-    try:
-        return (
-            joblib.load(os.path.join(path_models, 'limpiador_v1.joblib')),
-            joblib.load(os.path.join(path_models, 'scaler_standard_v1.joblib')),
-            joblib.load(os.path.join(path_models, 'credit_scorecard_v1_G71.joblib')),
-            joblib.load(os.path.join(path_models, 'model_features_v1.joblib'))
-        )
-    except Exception as e:
-        st.error(f"❌ Error al cargar los archivos .joblib desde: {path_models}")
-        st.exception(e)
-        st.stop()
+# --- CARGA DE MODELOS CON RUTA RELATIVA PARA GITHUB ---
+# Usamos 'experimental_allow_widget_deps' para evitar que se quede pensando si Git cambia los archivos
+@st.cache_resource(experimental_allow_widget_deps=True)
+def load_models(root_path):
+    path_models = os.path.join(root_path, "04_models")
+    return (
+        joblib.load(os.path.join(path_models, 'limpiador_v1.joblib')),
+        joblib.load(os.path.join(path_models, 'scaler_standard_v1.joblib')),
+        joblib.load(os.path.join(path_models, 'credit_scorecard_v1_G71.joblib')),
+        joblib.load(os.path.join(path_models, 'model_features_v1.joblib'))
+    )
 
-# Cargar CSV de forma segura
+# --- CARGA DE DATOS CON RUTA RELATIVA PARA GITHUB ---
 @st.cache_data
-def load_processed_data():
-    path_csv = os.path.join(root_dir, "01_data", "processed", "scoring_output.csv")
+def load_processed_data(root_path):
+    path_csv = os.path.join(root_path, "01_data", "processed", "scoring_output.csv")
     if os.path.exists(path_csv):
         df = pd.read_csv(path_csv)
         if "Unnamed: 0" in df.columns:
@@ -59,13 +53,11 @@ def load_processed_data():
             else:
                 df = df.drop(columns=["Unnamed: 0"])
         return df
-    else:
-        st.warning(f"⚠️ No se encontró el archivo de datos en: {path_csv}")
-        return None
+    return None
 
-# Ejecución de carga segura
-limpiador, scaler, modelo, model_features = load_models()
-df_p = load_processed_data()
+# Ejecución de carga pasando la raíz como argumento (así la caché no se buclea)
+limpiador, scaler, modelo, model_features = load_models(root_dir)
+df_p = load_processed_data(root_dir)
 
 # --- LÓGICA DE NEGOCIO: ASIGNACIÓN DE GESTORES (EQUILIBRADA) ---
 if df_p is not None and 'gestor' not in df_p.columns:
