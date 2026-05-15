@@ -8,6 +8,7 @@ import streamlit as st
 import joblib
 import pandas as pd
 import importlib
+import plotly.express as px
 
 # Aseguramos las rutas absolutas pase lo que pase
 current_dir = os.path.dirname(os.path.abspath(__file__)) # Carpeta '05_app'
