@@ -30,7 +30,6 @@ except Exception as e:
     st.stop()
 
 # --- CARGA DE MODELOS CON RUTA RELATIVA PARA GITHUB ---
-# Uso 'experimental_allow_widget_deps' para evitar que se quede pensando si Git cambia los archivos
 @st.cache_resource
 def load_models(root_path):
     path_models = os.path.join(root_path, "04_models")
@@ -55,13 +54,12 @@ def load_processed_data(root_path):
         return df
     return None
 
-# Ejecución de carga pasando la raíz como argumento (así la caché no se buclea)
+# Ejecución de carga pasando la raíz como argumento
 limpiador, scaler, modelo, model_features = load_models(root_dir)
 df_p = load_processed_data(root_dir)
 
 # --- LÓGICA DE NEGOCIO: ASIGNACIÓN DE GESTORES (EQUILIBRADA) ---
 if df_p is not None and 'gestor' not in df_p.columns:
-
     import math
 
     exp_por_gestor = 60
@@ -124,7 +122,6 @@ st.sidebar.title("Navegación")
 menu = st.sidebar.radio(
     "Seleccione módulo:",
     ["Dashboard de Cartera", "Panel de Gestión de Cartera", "Simulador de Riesgo"]
-
 )
 st.sidebar.markdown("---")
 st.sidebar.caption("© 2026 Analítica de Riesgos - Uso Interno")
@@ -261,20 +258,16 @@ if menu == "Dashboard de Cartera":
             st.error(f"Error al procesar las métricas: {e}")
 
 
-
-
-# --- MÓDULO 2: PANEL DE GESTIÓN DE CARTERA ---
-elif menu == " Panel de Gestión de Cartera":
-    st.header(" Panel de Gestión de Cartera")
+# --- MÓDULO 2: PANEL DE GESTIÓN DE CARTERA (Corregido espacio inicial) ---
+elif menu == "Panel de Gestión de Cartera":
+    st.header("Panel de Gestión de Cartera")
 
     if df_p is not None:
-
         # ============================
         # 1. SELECCIÓN DE GESTOR
         # ============================
         col_g1, col_g2 = st.columns([1, 3])
         with col_g1:
-            # Selector dinámico de gestores ordenados numéricamente
             gestor_actual = st.selectbox(
                 "Identifícate como gestor:",
                 sorted(df_p['gestor'].unique(), key=lambda x: int(x.split()[1]))
@@ -282,11 +275,10 @@ elif menu == " Panel de Gestión de Cartera":
 
         st.write(f"Viendo la cartera de: **{gestor_actual}**")
 
-        # Cartera completa del gestor (sin filtros de flujo)
         df_gestor = df_p[df_p['gestor'] == gestor_actual].copy()
 
         # ============================
-        # 2. FILTRO DE FLUJO DE TRABAJO (SE APLICA ANTES DEL GRÁFICO)
+        # 2. FILTRO DE FLUJO DE TRABAJO
         # ============================
         st.markdown("### Flujo de trabajo sobre tu cartera")
 
@@ -296,7 +288,6 @@ elif menu == " Panel de Gestión de Cartera":
             horizontal=True
         )
 
-        # Partimos de la cartera del gestor y filtramos SOLO para la vista de trabajo
         df_gestion = df_gestor.copy()
 
         if filtro_estado == "Solicitar Aval":
@@ -307,7 +298,7 @@ elif menu == " Panel de Gestión de Cartera":
             df_gestion = df_gestion[df_gestion['decision'].str.contains('Denegado', na=False)]
 
         # ============================
-        # 3. KPIs DEL GESTOR (FILTRADOS)
+        # 3. KPIs DEL GESTOR
         # ============================
         st.markdown("### Resumen Operativo del Gestor (Filtrado)")
 
@@ -325,13 +316,12 @@ elif menu == " Panel de Gestión de Cartera":
         st.markdown("---")
 
         # ============================
-        # 4. MINI DASHBOARD VISUAL (FILTRADO)
+        # 4. MINI DASHBOARD VISUAL
         # ============================
-
         COLORES_ESTADOS = {
-            "Pre-concedido (Campaña)": "#FF6200",   # Naranja
-            "Requiere Aval / Garantía": "#757575",  # Gris
-            "Denegado": "#D32F2F"                   # Rojo
+            "Pre-concedido (Campaña)": "#FF6200",
+            "Requiere Aval / Garantía": "#757575",
+            "Denegado": "#D32F2F"
         }
 
         st.markdown("### Distribución de Estados (Filtrada)")
@@ -367,7 +357,6 @@ elif menu == " Panel de Gestión de Cartera":
 
             mapa_prioridad = {"Alta": 1, "Media": 2, "Baja": 3}
             df_gestion["prioridad_num"] = df_gestion["prioridad"].map(mapa_prioridad)
-
             df_gestion = df_gestion.sort_values("prioridad_num")
 
             # ============================
@@ -399,7 +388,6 @@ elif menu == " Panel de Gestión de Cartera":
         # 7. BUSCADOR AVANZADO POR ID
         # ============================
         st.markdown("### Búsqueda directa por ID")
-
         id_busqueda = st.text_input("Introduce un ID para abrir expediente:")
 
         if id_busqueda:
@@ -411,9 +399,9 @@ elif menu == " Panel de Gestión de Cartera":
                 st.error("El ID no existe en la base de datos.")
 
 
-# --- MÓDULO 3: SIMULADOR DE RIESGO (REDISEÑADO) ---
-elif menu == " Simulador de Riesgo":
-    st.title(" Simulador de Riesgo – Evaluación Instantánea")
+# --- MÓDULO 3: SIMULADOR DE RIESGO (Corregido espacio inicial) ---
+elif menu == "Simulador de Riesgo":
+    st.title("Simulador de Riesgo – Evaluación Instantánea")
     st.markdown("Introduce los datos del cliente para obtener una evaluación clara y visual del riesgo.")
 
     with st.form("form_inferencia"):
