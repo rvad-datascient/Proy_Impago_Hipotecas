@@ -8,10 +8,10 @@ import numpy as np
 import plotly.express as px
 
 # ==============================================================================
-# 1. CONFIGURACIÓN DE RUTAS ENFOQUE GITHUB (SEGURO)
+# 1. CONFIGURACIÓN DE RUTAS PARA GITHUB
 # ==============================================================================
 
-# Definimos la raíz del proyecto de forma dinámica para GitHub y Local
+# Defino la raíz del proyecto de forma dinámica para GitHub y Local
 current_dir = os.path.dirname(os.path.abspath(__file__))
 root_dir = os.path.abspath(os.path.join(current_dir, ".."))
 
@@ -30,7 +30,7 @@ except Exception as e:
     st.stop()
 
 # --- CARGA DE MODELOS CON RUTA RELATIVA PARA GITHUB ---
-# Usamos 'experimental_allow_widget_deps' para evitar que se quede pensando si Git cambia los archivos
+# Uso 'experimental_allow_widget_deps' para evitar que se quede pensando si Git cambia los archivos
 @st.cache_resource
 def load_models(root_path):
     path_models = os.path.join(root_path, "04_models")
@@ -118,12 +118,12 @@ st.markdown("---")
 st.info("Panel de control de Scoring de Riesgos | Departamento de Análisis de Crédito")
 
 # --- SIDEBAR ---
-st.sidebar.markdown("## 🏦 Sistema de Scoring Hipotecas")
+st.sidebar.markdown("## Sistema de Scoring Hipotecas")
 st.sidebar.markdown("---")
 st.sidebar.title("Navegación")
 menu = st.sidebar.radio(
     "Seleccione módulo:",
-    ["📊 Dashboard de Cartera", "📁 Panel de Gestión de Cartera", "📝 Simulador de Riesgo"]
+    ["Dashboard de Cartera", "Panel de Gestión de Cartera", "Simulador de Riesgo"]
 
 )
 st.sidebar.markdown("---")
@@ -134,8 +134,8 @@ st.sidebar.caption("© 2026 Analítica de Riesgos - Uso Interno")
 # ==============================================================================
 
 # --- MÓDULO 1: DASHBOARD TEAM LEADER ---
-if menu == "📊 Dashboard de Cartera":
-    st.title("📊 Dashboard Team Leader - Estado Global")
+if menu == "Dashboard de Cartera":
+    st.title("Dashboard Team Leader - Estado Global")
 
     if df_p is not None:
         try:
@@ -158,7 +158,7 @@ if menu == "📊 Dashboard de Cartera":
             # ============================
             # 2. PLANIFICACIÓN DE STAFF
             # ============================
-            st.markdown("### 👥 Planificación y Reparto de Staff")
+            st.markdown("### Planificación y Reparto de Staff")
 
             exp_por_gestor = 60
             gestores_necesarios = round(total_solicitudes / exp_por_gestor)
@@ -196,18 +196,18 @@ if menu == "📊 Dashboard de Cartera":
                 st.plotly_chart(fig, use_container_width=True)
 
             with c2:
-                st.markdown("### 🎯 Drivers de Riesgo")
+                st.markdown("### Drivers de Riesgo")
                 st.write("**71.7%** de los rechazos se deben al **Uso de Crédito**.")
                 st.write("**27.5%** responden a **Morosidad** previa.")
                 st.divider()
-                st.info("💡 **Estrategia sugerida:** Fomentar productos con aval para la 'Zona Gris'.")
+                st.info("**Estrategia sugerida:** Fomentar productos con aval para la 'Zona Gris'.")
 
             st.markdown("---")
 
             # ============================
             # 5. KPIs DE CARGA
             # ============================
-            st.markdown("### 📊 Indicadores de Carga de Trabajo")
+            st.markdown("### Indicadores de Carga de Trabajo")
 
             df_dist = df_p.groupby("gestor").size()
 
@@ -234,7 +234,7 @@ if menu == "📊 Dashboard de Cartera":
             media_aval = int(df_tipo[df_tipo["decision"] == "Requiere Aval / Garantía"]["expedientes"].mean())
             media_den = int(df_tipo[df_tipo["decision"] == "Denegado"]["expedientes"].mean())
 
-            st.markdown("#### 🔍 Desglose medio por tipo de decisión (por gestor)")
+            st.markdown("#### Desglose medio por tipo de decisión (por gestor)")
             st.write(f"• **Pre‑concedidos:** {media_pre:,}".replace(",", ".") + " por gestor")
             st.write(f"• **Requieren Aval:** {media_aval:,}".replace(",", ".") + " por gestor")
             st.write(f"• **Denegados:** {media_den:,}".replace(",", ".") + " por gestor")
@@ -244,7 +244,7 @@ if menu == "📊 Dashboard de Cartera":
             # ============================
             # 6. DISTRIBUCIÓN GLOBAL (BOXPLOT)
             # ============================
-            st.markdown("### 📦 Distribución global de carga entre gestores")
+            st.markdown("### Distribución global de carga entre gestores")
 
             fig_box = px.box(
                 df_dist,
@@ -264,8 +264,8 @@ if menu == "📊 Dashboard de Cartera":
 
 
 # --- MÓDULO 2: PANEL DE GESTIÓN DE CARTERA ---
-elif menu == "📁 Panel de Gestión de Cartera":
-    st.header("📁 Panel de Gestión de Cartera")
+elif menu == " Panel de Gestión de Cartera":
+    st.header(" Panel de Gestión de Cartera")
 
     if df_p is not None:
 
@@ -288,7 +288,7 @@ elif menu == "📁 Panel de Gestión de Cartera":
         # ============================
         # 2. FILTRO DE FLUJO DE TRABAJO (SE APLICA ANTES DEL GRÁFICO)
         # ============================
-        st.markdown("### 🧮 Flujo de trabajo sobre tu cartera")
+        st.markdown("### Flujo de trabajo sobre tu cartera")
 
         filtro_estado = st.radio(
             "Selecciona flujo de trabajo:",
@@ -309,7 +309,7 @@ elif menu == "📁 Panel de Gestión de Cartera":
         # ============================
         # 3. KPIs DEL GESTOR (FILTRADOS)
         # ============================
-        st.markdown("### 📊 Resumen Operativo del Gestor (Filtrado)")
+        st.markdown("### Resumen Operativo del Gestor (Filtrado)")
 
         total = len(df_gestion)
         pre = (df_gestion['decision'].str.contains("Pre-concedido", na=False)).sum()
@@ -334,7 +334,7 @@ elif menu == "📁 Panel de Gestión de Cartera":
             "Denegado": "#D32F2F"                   # Rojo
         }
 
-        st.markdown("### 📈 Distribución de Estados (Filtrada)")
+        st.markdown("### Distribución de Estados (Filtrada)")
 
         if total > 0:
             fig = px.pie(
@@ -376,7 +376,7 @@ elif menu == "📁 Panel de Gestión de Cartera":
             columnas_finales = ['id', 'IngresoMensual', 'score', 'decision', 'motivo_principal', 'prioridad']
             columnas_visibles = [c for c in columnas_finales if c in df_gestion.columns]
 
-            st.markdown("### 📑 Expedientes Prioritarios en este flujo")
+            st.markdown("### Expedientes Prioritarios en este flujo")
 
             def color_prioridad(row):
                 if row["prioridad"] == "Alta":
@@ -398,7 +398,7 @@ elif menu == "📁 Panel de Gestión de Cartera":
         # ============================
         # 7. BUSCADOR AVANZADO POR ID
         # ============================
-        st.markdown("### 🔎 Búsqueda directa por ID")
+        st.markdown("### Búsqueda directa por ID")
 
         id_busqueda = st.text_input("Introduce un ID para abrir expediente:")
 
@@ -412,8 +412,8 @@ elif menu == "📁 Panel de Gestión de Cartera":
 
 
 # --- MÓDULO 3: SIMULADOR DE RIESGO (REDISEÑADO) ---
-elif menu == "📝 Simulador de Riesgo":
-    st.title("📝 Simulador de Riesgo – Evaluación Instantánea")
+elif menu == " Simulador de Riesgo":
+    st.title(" Simulador de Riesgo – Evaluación Instantánea")
     st.markdown("Introduce los datos del cliente para obtener una evaluación clara y visual del riesgo.")
 
     with st.form("form_inferencia"):
@@ -497,7 +497,7 @@ elif menu == "📝 Simulador de Riesgo":
             st.metric("Ingreso mensual", f"{ingreso:,.0f} €")
 
         # 5. Explicabilidad simplificada
-        st.markdown("### 🔍 Factores que afectan al riesgo")
+        st.markdown("### Factores que afectan al riesgo")
 
         if uso_credito > 0.9:
             st.error("• Uso de crédito extremadamente alto (>90%)")
@@ -518,7 +518,7 @@ elif menu == "📝 Simulador de Riesgo":
         st.markdown("---")
 
         # 6. Recomendación operativa
-        st.markdown("### 💡 Recomendación operativa")
+        st.markdown("### Recomendación operativa")
 
         if decision == "Pre-concedido (Campaña)":
             st.success("Cliente apto. Proceder con documentación.")
